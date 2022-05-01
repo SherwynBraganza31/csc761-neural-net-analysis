@@ -42,15 +42,15 @@ class CNN(nn.Module):
             nn.Conv2d(
                 in_channels=1,
                 out_channels=16,
-                kernel_size=5,
-                stride=1,
+                kernel_size=(5,5),
+                stride=(1,1),
                 padding=2,
             ),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
         )
         self.conv2 = nn.Sequential(
-            nn.Conv2d(16, 32, 5, 1, 2),
+            nn.Conv2d(16, 32, (5,5), (1,1), 2),
             nn.ReLU(),
             nn.MaxPool2d(2),
         )
@@ -66,6 +66,7 @@ class CNN(nn.Module):
         return output, x    # return x for visualization
 
 model_cnn = CNN()
+
 try:
     model_cnn.load_state_dict(torch.load("cnn.sav"))
     model_cnn.eval()
@@ -100,8 +101,8 @@ for e in range(epochs):
         running_loss += loss.item()
     else:
         mean_loss = running_loss/len(mnist_trainloader)
-        print("Epoch {} - Training loss: {}".format(e, mean_loss))
-        log_dictionary.append((e+1,mean_loss))
+        print("Epoch {} - Training loss: {}".format(epoch_pad + e +1, mean_loss))
+        log_dictionary.append((epoch_pad+e+1,mean_loss))
 
 timestamp = (time() - time0)
 print("\nTraining Time (in minutes) =", timestamp / 60)

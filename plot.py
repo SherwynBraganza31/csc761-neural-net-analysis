@@ -1,7 +1,6 @@
-import math
-import matplotlib.axes
+import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.axes as ax
+
 ann_vals = [[],[],[]]
 cnn_vals = [[],[],[]]
 try:
@@ -59,3 +58,4 @@ plt.title("Accuracy - Convolutional Neural Network")
 plt.boxplot(cnn_vals[2],vert=False)
 plt.show()
 
+print("Time Difference = {}".format(abs(np.sum(ann_vals[1]) - np.sum(cnn_vals[1]))))
