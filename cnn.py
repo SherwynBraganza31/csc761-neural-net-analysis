@@ -1,13 +1,10 @@
 from time import time
-import json
-# PyTorch imports
 import torch
 from torch.autograd import Variable
 from torch import nn, optim
-# import Linear, ReLU, CrossEntropyLoss, Sequential, Conv2d, MaxPool2d, Module, Softmax, BatchNorm2d, Dropout
-from torch.optim import Adam, SGD
 from torchvision import transforms, datasets
 
+# Transform datasets into Tensors Elements when retrieving
 transform = transforms.Compose([transforms.ToTensor(),
                               transforms.Normalize((0.5,), (0.5,))])
 
@@ -35,26 +32,37 @@ try:
 except(FileNotFoundError):
     print("No Log file found")
 
+"""
+CNN Model Definition
+
+4 Layers -> 2 Convolutional
+"""
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
+        # 1 Input layer. Takes one Batch of tensors at a time.
+        # Each layer is defined in terms of the its connection with the previous
+        # layer
         self.conv1 = nn.Sequential(
             nn.Conv2d(
-                in_channels=1,
-                out_channels=16,
-                kernel_size=(5,5),
-                stride=(1,1),
-                padding=2,
+                in_channels=1,  # 1 input channel
+                out_channels=16, # 16 output channels
+                kernel_size=(5,5), # sliding window matrix of size (5,5)
+                stride=(1,1), # Move the window by the stride value
+                padding=2, # pad the data to make it 30x30 instead of 28x28 (auto calculates if missing)
             ),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
+            nn.ReLU(), # activation function
+            nn.MaxPool2d(kernel_size=2), # pooling function with window matrix of size (2,2)
         )
+        # same as above but few changes to input and output layers
         self.conv2 = nn.Sequential(
             nn.Conv2d(16, 32, (5,5), (1,1), 2),
             nn.ReLU(),
             nn.MaxPool2d(2),
         )
-        # fully connected layer, output 10 classes
+        # Define a fully connected layer to link the 32x49 output from the Conv Layer to the Output Layer
+        # performs the same function as a Softmax activator function but is better as it takes a dynamic
+        # learning approach rather than a probabilistic one.
         self.out = nn.Linear(32 * 7 * 7, 10)
 
     def forward(self, x):
@@ -84,7 +92,7 @@ for e in range(epochs):
     running_loss = 0
     for images, labels in mnist_trainloader:
         # Don't flatten MNIST images into a 784 long vector
-        # images = images.view(images.shape[0], -1)
+        # you need to take it in as 1 Tensor Input
 
         # Training pass
         optimizer.zero_grad()

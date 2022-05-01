@@ -2,11 +2,15 @@ import torch
 from time import time
 from torchvision import datasets, transforms
 from torch import nn, optim
+
+# set the parameters to transform the dataset for input
 transform = transforms.Compose([transforms.ToTensor(),
                               transforms.Normalize((0.5,), (0.5,))])
 
 """
 MNIST Dataset Dataloaders
+
+Load with batch size of 64 samples at a time. 
 """
 mnist_trainset = datasets.MNIST(root='mnist_dataset', download=True, train=True, transform=transform)
 mnist_testset = datasets.MNIST(root='mnist_dataset', download=True, train=False, transform=transform)
@@ -29,12 +33,21 @@ try:
 except(FileNotFoundError):
     print("No Log file found")
 
-# Parameters and Layer Nodes
-input_size = 784
+# Layer HyperParameters
+input_size = 784 # input layer
 hidden_sizes = [128, 64] # 2 hidden Layers
-output_size = 10
+output_size = 10 # output layer
 
+"""
+Model Declaration
+Declare a model with 4 fully connected Layers using the above hyperparams
 
+nn.Linear is a method of defining a fully conected layer from param1 to param2,
+the following argument has to be the activation function for that layer.
+
+The general methodology is to follow a Linear Layer Definition with a activation 
+function and in the output case, and output function
+"""
 model_ann = nn.Sequential(nn.Linear(input_size, hidden_sizes[0]),
                   nn.ReLU(),
                   nn.Linear(hidden_sizes[0], hidden_sizes[1]),
@@ -42,17 +55,20 @@ model_ann = nn.Sequential(nn.Linear(input_size, hidden_sizes[0]),
                   nn.Linear(hidden_sizes[1], output_size),
                   nn.LogSoftmax(dim=1))
 
+# try to load old model with saved weights and parameterrs
 try:
     model_ann.load_state_dict(torch.load("ann.sav"))
     model_ann.eval()
 except:
     print("Could not load old model")
 
+# choose the loss criterion
 criterion = nn.CrossEntropyLoss()
 images, labels = next(iter(mnist_trainloader))
 
+# optimizer/learner
 optimizer = optim.Adam(model_ann.parameters(), lr=0.001)
-time0 = time()
+time0 = time() # take note of start time for timing of the process
 epochs = 15
 
 for e in range(epochs):
@@ -64,6 +80,7 @@ for e in range(epochs):
         # Training pass
         optimizer.zero_grad()
 
+        # get output and calculate loss based on chosen criterion
         output = model_ann(images)
         loss = criterion(output, labels)
 
@@ -85,6 +102,10 @@ print("\nTraining Time (in minutes) =", timestamp/ 60)
 images, labels = next(iter(mnist_testloader))
 correct_count, all_count = 0, 0
 
+
+"""
+Testing phase
+"""
 for images, labels in mnist_testloader:
     for i in range(len(labels)):
         img = images[i].view(1, 784)
