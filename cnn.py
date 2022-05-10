@@ -4,66 +4,147 @@ from torch.autograd import Variable
 from torch import nn, optim
 from torchvision import transforms, datasets
 
-# Transform datasets into Tensors Elements when retrieving
-transform = transforms.Compose([transforms.ToTensor(),
-                              transforms.Normalize((0.5,), (0.5,))])
 
 """
-MNIST Dataset Dataloaders
-"""
-mnist_trainset = datasets.MNIST(root='mnist_dataset', download=True, train=True, transform=transforms.ToTensor())
-mnist_testset = datasets.MNIST(root='mnist_dataset', download=True, train=False, transform=transforms.ToTensor())
-mnist_trainloader = torch.utils.data.DataLoader(mnist_trainset, batch_size=64, shuffle=True)
-mnist_testloader = torch.utils.data.DataLoader(mnist_testset, batch_size=64, shuffle=True)
+MNIST Dataset Dataloaders Class
+
+    Attributes
+    ----------
+    trainset : torch.datasets
+        torchvision datasets class representing the training set
+    testset : torch.datasets
+        torchvision datasets class representing the testing set
+    trainloader : torch.utils.data.DataLoader
+        torchvision datasets class representing the training set labels
+    testloader : torch.utils.data.DataLoader
+        torchvision datasets class representing the testing set labels
+    batch_size : int
+        the size of sample set to be loaded in when testing and training
 
 """
-Log file Handling
-Open a log file if it exits and get the last epoch number to continue from
+class DatasetsMNIST:
+    def __init__(self, batch_size=64):
+        self.trainset = datasets.MNIST(root='mnist_dataset', download=True, train=True, transform=transforms.ToTensor())
+        self.testset = datasets.MNIST(root='mnist_dataset', download=True, train=False, transform=transforms.ToTensor())
+        self.trainloader = torch.utils.data.DataLoader(self.trainset, batch_size=batch_size, shuffle=True)
+        self.testloader = torch.utils.data.DataLoader(self.testset, batch_size=batch_size, shuffle=True)
+        pass
+
+    # def transformConfig(self):
+    #     self.transform = transforms.Compose([transforms.ToTensor(),
+    #                                          transforms.Normalize((0.5,), (0.5,))])
+    #     return self.transform
+
 """
-log_dictionary = []
-epoch_pad = 0
-try:
-    with open('cnn.log', 'r', encoding='utf-8') as f:
-        for line in f:
-            pass
-        last_line = line
-        epoch_pad = int(line.split(",")[0])
-        f.close()
-except(FileNotFoundError):
-    print("No Log file found")
+Log Dictionary Class
+Creates a list of dictionaries that serves as a log file. 
+Checks for existing log files to append to or creates a new one
+if none exit
+
+    Attributes
+    ----------
+    log_dictionary: list
+        list of dictionaries acting as epoch logs
+    epoch_pad: int
+        the last read epoch # from the file
+    filename: string
+        the name of the old logfile
+
+"""
+class LogDict:
+    def __init__(self, filename: str):
+        self.dictionary = []
+        self.epoch_pad = 0
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                for line in f:
+                    pass
+                last_line = line
+                self.epoch_pad = int(line.split(",")[0])
+                f.close()
+        except(FileNotFoundError):
+            print("No Log file found")
+
+    def save_log_file(self, filename='cnn.log'):
+        with open(filename, 'a', encoding='utf-8') as f:
+            for x in self.dictionary:
+                f.write(str(x[0]) + "," + str(x[1]) + "\n")
+            f.close()
 
 """
 CNN Model Definition
-
+Inherits from superclass nn.Module.
 4 Layers -> 2 Convolutional
+
+    Attributes
+    ----------
+    conv1: torch.nn.Sequential
+        First Convolutional Layer. 1 input (unchangeable), 16 outputs.
+        
+    conv2: torch.nn.Sequential
+        Second Convolutional Layer. 16 inputs, 32 outputs. Changeable with changes made to 1st layer
+        
+    output: torch.nn.Sequential
+        Output Layer. Implements a softmax ish output.
+        
+    optimizer: torch.optim
+        Optimizer module
+        
+    criterion: torch.nn
+        Loss method object
+        
+    Methods
+    -------
+    forward(x)
+        inherits from parent class. Links all NN modules created
+        
+    load_model_from_file(filename)
+        loads a torch.state_dict from the saved model specified by
+        filename and updates the model params
+        
+    config_optimizer(learning_rate)
+        configures the optimizer object model
+        
+    config_loss_function()
+        configures loss function parameters
+        
+    save_state(filename)
+        saves the torch.state_dict corresponding to the models current
+        params      
 """
-class CNN(nn.Module):
+class ModelCNN(nn.Module):
     def __init__(self):
-        super(CNN, self).__init__()
-        # 1 Input layer. Takes one Batch of tensors at a time.
-        # Each layer is defined in terms of the its connection with the previous
-        # layer
+        super().__init__()
         self.conv1 = nn.Sequential(
             nn.Conv2d(
                 in_channels=1,  # 1 input channel
-                out_channels=16, # 16 output channels
-                kernel_size=(5,5), # sliding window matrix of size (5,5)
-                stride=(1,1), # Move the window by the stride value
-                padding=2, # pad the data to make it 30x30 instead of 28x28 (auto calculates if missing)
+                out_channels=16,  # 16 output channels
+                kernel_size=(5, 5),  # sliding window matrix of size (5,5)
+                stride=(1, 1),  # Move the window by the stride value
+                padding=(2, 2)  # pad the data to make it 30x30 instead of 28x28 (auto calculates if missing)
             ),
-            nn.ReLU(), # activation function
-            nn.MaxPool2d(kernel_size=2), # pooling function with window matrix of size (2,2)
+            nn.ReLU(),  # activation function
+            nn.MaxPool2d(kernel_size=2),  # pooling function with window matrix of size (2,2)
         )
-        # same as above but few changes to input and output layers
+
         self.conv2 = nn.Sequential(
-            nn.Conv2d(16, 32, (5,5), (1,1), 2),
+            nn.Conv2d(in_channels=16,
+                      out_channels=32,
+                      kernel_size=(5, 5),
+                      stride=(1, 1),
+                      padding=(2, 2)),
             nn.ReLU(),
             nn.MaxPool2d(2),
         )
+
         # Define a fully connected layer to link the 32x49 output from the Conv Layer to the Output Layer
         # performs the same function as a Softmax activator function but is better as it takes a dynamic
         # learning approach rather than a probabilistic one.
         self.out = nn.Linear(32 * 7 * 7, 10)
+
+        self.optimizer = self.config_optimizer()
+        self.criterion = self.config_loss_function()
+        pass
 
     def forward(self, x):
         x = self.conv1(x)
@@ -71,58 +152,73 @@ class CNN(nn.Module):
         # flatten the output of conv2 to (batch_size, 32 * 7 * 7)
         x = x.view(x.size(0), -1)
         output = self.out(x)
-        return output, x    # return x for visualization
+        return output, x  # return x for visualization
 
-model_cnn = CNN()
+    def load_model_from_file(self, filename):
+        try:
+            self.load_state_dict(torch.load(filename))
+            self.eval()
+        except FileNotFoundError:
+            print("Could not load old model")
+            self.config_optimizer()
+            self.config_loss_function()
 
-try:
-    model_cnn.load_state_dict(torch.load("cnn.sav"))
-    model_cnn.eval()
-except:
-    print("Could not load old model")
+        return self
 
-criterion = nn.CrossEntropyLoss()
-images, labels = next(iter(mnist_trainloader))
+    def config_optimizer(self, learning_rate=0.001):
+        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+        return self.optimizer
 
-optimizer = optim.Adam(model_cnn.parameters(), lr=0.001)
-time0 = time()
+    def config_loss_function(self):
+        self.criterion = nn.CrossEntropyLoss()
+        return self.criterion
+
+    def save_state(self, filename='cnn.sav'):
+        torch.save(self.state_dict(), "cnn.sav")
+
+
+cnn = ModelCNN()
+cnn = cnn.load_model_from_file('cnn.sav')
+dataset = DatasetsMNIST()
+log = LogDict(filename='cnn.log')
+
 epochs = 15
+images, labels = next(iter(dataset.trainset))
+time0 = time()
 
 for e in range(epochs):
     running_loss = 0
-    for images, labels in mnist_trainloader:
-        # Don't flatten MNIST images into a 784 long vector
-        # you need to take it in as 1 Tensor Input
+    for images, labels in dataset.trainloader:
 
         # Training pass
-        optimizer.zero_grad()
+        cnn.optimizer.zero_grad()
 
-        output = model_cnn(Variable(images))[0]
-        loss = criterion(output, Variable(labels))
+        output = cnn(Variable(images))[0]
+        loss = cnn.criterion(output, Variable(labels))
 
         # This is where the model learns by backpropagating
         loss.backward()
 
         # And optimizes its weights here
-        optimizer.step()
+        cnn.optimizer.step()
 
         running_loss += loss.item()
     else:
-        mean_loss = running_loss/len(mnist_trainloader)
-        print("Epoch {} - Training loss: {}".format(epoch_pad + e +1, mean_loss))
-        log_dictionary.append((epoch_pad+e+1,mean_loss))
+        mean_loss = running_loss/len(dataset.trainloader)
+        print("Epoch {} - Training loss: {}".format(log.epoch_pad + e +1, mean_loss))
+        log.dictionary.append((log.epoch_pad+e+1,mean_loss))
 
 timestamp = (time() - time0)
 print("\nTraining Time (in minutes) =", timestamp / 60)
 
-images, labels = next(iter(mnist_testloader))
+images, labels = next(iter(dataset.testloader))
 correct_count, all_count = 0, 0
-model_cnn.eval()
+cnn.model.eval()
 accuracy = 0
 
 for i in range(len(labels)):
     with torch.no_grad():
-        test_output, last_layer = model_cnn(images)
+        test_output, last_layer = cnn(images)
 
     pred_label = torch.max(test_output, 1)[1].data.squeeze()
     accuracy = (pred_label == labels).sum().item() / float(labels.size(0))
@@ -130,11 +226,12 @@ for i in range(len(labels)):
 print("\nNumber Of Images Tested =", 10000)
 print("Model Accuracy =", accuracy * 100, "%")
 
-torch.save(model_cnn.state_dict(), "cnn.sav")
-with open('cnn.log', 'a', encoding='utf-8') as f:
-    for x in log_dictionary:
-        f.write(str(x[0]) + "," + str(x[1]) + "\n")
-    f.close()
+# save the model
+cnn.save_state()
+
+# log records
+log.save_log_file()
+
 with open('cnn.time', 'a', encoding='utf-8') as f:
     f.write(str(timestamp) + "," + str(accuracy*100) + "\n")
     f.close()
